@@ -10,4 +10,4 @@ The study is organised into three experiments:
 
 The data is kept in the `data` folder of this repository as csv files. The exception is DCD data for Experiment 1, which is found in [DCD](https://github.com/tuomaseerola/DCD), also stored as csv file. 
 
-The R scripts will replicate all analyses in the manuscript and offer several alternative analyses. You can access the compiled output (results, figures) of the analyses at the [docs](https://tuomaseerola.github.io/anatomy-of-consonance/)
+The R scripts will replicate all analyses in the manuscript and offer several alternative analyses. You can access the compiled output (results, figures) of the analyses at the [docs](https://tuomaseerola.github.io/anatomy-of-consonance/).
