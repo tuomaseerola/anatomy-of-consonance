@@ -1,5 +1,17 @@
 ---
-output: github_document
+title: "The Anatomy of Consonance/Dissonance"
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    theme: united
+    highlight: tango
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -13,24 +25,869 @@ knitr::opts_chunk$set(
 )
 ```
 
-# anatomy-of-consonance
-
-<!-- badges: start -->
-<!-- badges: end -->
-
 This repository contains data and analyses related to study titled _The Anatomy of Consonance/Dissonance: Evaluating Acoustic and Cultural Predictors Across Multiple Datasets with Chords_ by Tuomas Eerola and Imre Lahdelma (Durham University, UK).
 
-The study is organised into three experiments. Experiment 1 relates to (Durham Chord Dataset)[https://github.com/tuomaseerola/DCD], Experiment 2 to the analysis of three datasets, and Experiment 3 to the analysis of nine datasets.
+The study is organised into three experiments:
 
-## Experiment 1
+* Experiment 1 relates to [Durham Chord Dataset](https://github.com/tuomaseerola/DCD)
+* Experiment 2 to the analysis of three datasets (`lah20a`,`lah20b`,`pop19`)
+* Experiment 3 to the analysis of nine datasets
 
-```{r,message=FALSE,warning=FALSE}
-#source('compile_DCD_predictors.R')
+The data is kept in the `data` folder of this repository as csv files. The exception is DCD data for Experiment 1, which is found in [DCD](https://github.com/tuomaseerola/DCD), also stored as csv file. The following R scripts will replicate all analyses in the manuscript and offer several alternative analyses.
+
+# Experiment 1
+
+Full data of the Experiment 1 is available from [https://github.com/tuomaseerola/DCD/](https://github.com/tuomaseerola/DCD/). The following script obtain the data from that repository directly. 
+
+## Cluster analysis
+
+```{r,message=FALSE,warning=FALSE,cache=TRUE}
+corpus <- read.csv('https://raw.githubusercontent.com/tuomaseerola/DCD/master/data/DCD_predictors.csv')
+print(dim(corpus))
+## Cluster analysis
+library("factoextra")  # Load libraries
+library("cluster")
+
+## Prepare a correlation matrix
+df <- cor(corpus[,6:dim(corpus)[2]], method = "pearson") # Eliminate first 5 columns (meta-data)
+## Determine the number of clusters via hierarchical clustering
+set.seed(123)
+df.dist <- (1 - df)
+gap_stat <- clusGap(df.dist,FUN = hcut, K.max = 10,B = 1000)
+print(fviz_gap_stat(gap_stat, maxSE = list(method = "Tibs2001SEmax"))) # 4
 ```
 
-## Analysis files
+## Visualise predictor correlations and clusters
 
-* `exp2_alternative_analysis_fixed_factors.R` : Alternative analysis where chord size is included as a fixed factor (and we drop datasets entirely, it does not seem to be doing much), chord size is consistently a significant predictor in all models with a small positive coefficient.
+```{r warning=FALSE, message=FALSE, fig.width=10, fig.height=10, cache=TRUE,fig.cap='Figure 1. Correlations and a hierarchical cluster solution for predictors of roughness, harmonicity, familiarity and spectral envelope categories (Durham Chord Dataset, n = 4755).'}
 
-* `permutated_analysis.R` : A control analyses with all 24 permutations of the predictor category orders (e.g. starting with "Roughness", "Harmonicity","Familiarity", and "Spectral Envelope" as reported and moving onto "Roughness", "Harmonicity", "Spectral Envelope", and "Familiarity", until all 24 permutations had gone through with the same type of analysis where all candidates are tested and the strongest one is taken forward to represent that category). The outcome of this analysis did not change in any iteration, so the same predictors won the comparison despite their order in the sequence. However, the strength of the predictor improvement did vary across the orders.
+library("pheatmap")
+
+## Rename variables for clarity
+rownames(df)[rownames(df)=='gill_09_harmonicity']<-"Gill09"
+rownames(df)[rownames(df)=='stolz_15_periodicity']<-"Stol15"
+rownames(df)[rownames(df)=='har_18_harmonicity']<-"Harr18"
+rownames(df)[rownames(df)=='milne_13_harmonicity']<-"Miln13"
+rownames(df)[rownames(df)=='parn_88_root_ambig']<-"Parn88"
+rownames(df)[rownames(df)=='parn_94_complex']<-"Parn94"
+rownames(df)[rownames(df)=='bowl_18_min_freq_dist']<-"Bowl18"
+rownames(df)[rownames(df)=='hutch_78_roughness']<-"Hutc78"
+rownames(df)[rownames(df)=='seth_93_roughness']<-"Seth93"
+rownames(df)[rownames(df)=='vass_01_roughness']<-"Vass01"
+rownames(df)[rownames(df)=='wang_13_roughness']<-"Wang13"
+rownames(df)[rownames(df)=='har_19_corpus']<-"Harr19"
+rownames(df)[rownames(df)=='neg_log_prob']<-"CorpPop"
+rownames(df)[rownames(df)=='neg_log_prob_J']<-"CorpJazz"
+rownames(df)[rownames(df)=='neg_log_prob_C']<-"CorpClas"
+rownames(df)[rownames(df)=='sharpness']<-"SpecSharp"
+rownames(df)[rownames(df)=='brightness']<-"SpecRolloff"
+rownames(df)[rownames(df)=='spectralfluxSD']<-"SpecFlux"
+rownames(df)[rownames(df)=='keyclarity']<-"KeyClar"
+rownames(df)[rownames(df)=='spectralcentroid']<-"SpecCentr"
+rownames(df)[rownames(df)=='irregularity']<-"SpecIrreg"
+rownames(df)[rownames(df)=='TDL']<-"TonDiss"
+colnames(df)<-rownames(df)
+
+cat_df <- data.frame("Category" = c(
+  rep("Harmonicity",7), 
+  rep("Roughness",4),
+  rep("Familiarity",1), 
+  rep("Spectral Env.",5),
+  rep("Familiarity",5))) 
+rownames(cat_df) = colnames(df)
+
+# Create plot
+figure1 <- pheatmap(
+  df,
+  display_numbers = TRUE,
+  fontsize_number=5,
+ cutree_rows = 4,
+ cutree_cols = 4,
+  cluster_cols = TRUE,
+  cluster_rows = TRUE,
+  treeheight_row = 50,
+  treeheight_col = 50,
+  legend = FALSE,
+  clustering_distance_cols = "correlation",
+  clustering_distance_rows = "correlation",
+  clustering_method = 'ward.D2', # was ward.D2
+  annotation_col = cat_df,
+  annotation_row = cat_df,
+  annotation_legend = TRUE,
+  annotation_names_col = TRUE,
+  cellheight= 20, 
+  cellwidth = 20
+)
+print(figure1)
+```
+
+## Visualise predictors across numerosity and register
+
+```{r warning=FALSE, message=FALSE, fig.width=10, fig.height=10, cache=TRUE,fig.cap='Figure 2. Numerosity and register across roughness and harmonicity models (Durham Chord Dataset, n = 4755).'}
+
+names(corpus)[names(corpus)=='gill_09_harmonicity']<-"Gill09"
+names(corpus)[names(corpus)=='har_18_harmonicity']<-"Harr18"
+names(corpus)[names(corpus)=='milne_13_harmonicity']<-"Miln13"
+names(corpus)[names(corpus)=='parn_88_root_ambig']<-"Parn88"
+names(corpus)[names(corpus)=='parn_94_complex']<-"Parn94"
+names(corpus)[names(corpus)=='stolz_15_periodicity']<-"Stol15"
+names(corpus)[names(corpus)=='bowl_18_min_freq_dist']<-"Bowl18"
+names(corpus)[names(corpus)=='hutch_78_roughness']<-"Hutc78"
+names(corpus)[names(corpus)=='seth_93_roughness']<-"Seth93"
+names(corpus)[names(corpus)=='vass_01_roughness']<-"Vass01"
+names(corpus)[names(corpus)=='wang_13_roughness']<-"Wang13"
+names(corpus)[names(corpus)=='har_19_corpus']<-"Harr19"
+names(corpus)[names(corpus)=='neg_log_prob']<-"CorpPop"
+names(corpus)[names(corpus)=='neg_log_prob_J']<-"CorpJazz"
+names(corpus)[names(corpus)=='neg_log_prob_C']<-"CorpClas"
+names(corpus)[names(corpus)=='sharpness']<-"SpecSharp"
+names(corpus)[names(corpus)=='brightness']<-"SpecRolloff"
+names(corpus)[names(corpus)=='spectralfluxSD']<-"SpecFlux"
+names(corpus)[names(corpus)=='keyclarity']<-"KeyClar"
+names(corpus)[names(corpus)=='spectralcentroid']<-"SpecCentr"
+names(corpus)[names(corpus)=='irregularity']<-"SpecIrreg"
+names(corpus)[names(corpus)=='TDL']<-"TonDiss"
+
+#### 3. Run Anovas -------------------------
+x<-matrix(NA,16,2) # pvalues
+x[1,1:2]<-summary(aov(Gill09 ~ numtones * register, data=corpus))[[1]][1:2,5] 
+x[2,1:2]<-summary(aov(Harr18 ~ numtones * register, data=corpus))[[1]][1:2,5]      
+x[3,1:2]<-summary(aov(Miln13 ~ numtones * register, data=corpus))[[1]][1:2,5]      
+x[4,1:2]<-summary(aov(Parn88 ~ numtones * register, data=corpus))[[1]][1:2,5]      
+x[5,1:2]<-summary(aov(Parn94 ~ numtones * register, data=corpus))[[1]][1:2,5] 
+x[6,1:2]<-summary(aov(Stol15 ~ numtones * register, data=corpus))[[1]][1:2,5] 
+x[7,1:2]<-summary(aov(Bowl18 ~ numtones * register, data=corpus))[[1]][1:2,5] 
+x[8,1:2]<-summary(aov(Hutc78 ~ numtones * register, data=corpus))[[1]][1:2,5] 
+x[9,1:2]<-summary(aov(Seth93 ~ numtones * register, data=corpus))[[1]][1:2,5] 
+x[10,1:2]<-summary(aov(Vass01 ~ numtones * register, data=corpus))[[1]][1:2,5]
+x[11,1:2]<-summary(aov(Wang13 ~ numtones * register, data=corpus))[[1]][1:2,5]
+x[12,1:2]<-summary(aov(SpecSharp ~ numtones * register, data=corpus))[[1]][1:2,5] 
+x[13,1:2]<-summary(aov(SpecRolloff ~ numtones * register, data=corpus))[[1]][1:2,5]
+x[14,1:2]<-summary(aov(SpecFlux ~ numtones * register, data=corpus))[[1]][1:2,5] 
+x[15,1:2]<-summary(aov(SpecCentr ~ numtones * register, data=corpus))[[1]][1:2,5]
+x[16,1:2]<-summary(aov(SpecIrreg ~ numtones * register, data=corpus))[[1]][1:2,5]
+
+F<-matrix(NA,16,2) # F values
+F[1,1:2]<-summary(aov(Gill09 ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[2,1:2]<-summary(aov(Harr18 ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[3,1:2]<-summary(aov(Miln13 ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[4,1:2]<-summary(aov(Parn88 ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[5,1:2]<-summary(aov(Parn94 ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[6,1:2]<-summary(aov(Stol15 ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[7,1:2]<-summary(aov(Bowl18 ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[8,1:2]<-summary(aov(Hutc78 ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[9,1:2]<-summary(aov(Seth93 ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[10,1:2]<-summary(aov(Vass01 ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[11,1:2]<-summary(aov(Wang13 ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[12,1:2]<-summary(aov(SpecSharp ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[13,1:2]<-summary(aov(SpecRolloff ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[14,1:2]<-summary(aov(SpecFlux ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[15,1:2]<-summary(aov(SpecCentr ~ numtones * register, data=corpus))[[1]][1:2,4]
+F[16,1:2]<-summary(aov(SpecIrreg ~ numtones * register, data=corpus))[[1]][1:2,4]
+
+#round(F,3) # 1 col for Numerosity, 2 col for register
+varnames<-c("Gill09","Harr18","Miln13","Parn88","Parn94","Stol15","Bowl18","Hutc78","Seth93","Vass01","Wang13","SpecSharp","SpecRollof","SpecFlux","SpecCentr","SpecIrreg")
+numerosity <- data.frame(Fval=F[,1], pval=x[,1])
+rownames(numerosity)<-varnames
+#print(round(numerosity,2))
+
+register <- data.frame(Fval=F[,2], pval=x[,2])
+rownames(register)<-varnames
+#print(round(register,2))
+
+#### Create long-form suitable for plotting  ---------------------
+library(reshape2)
+n<-names(corpus)
+m <- melt(corpus,id.vars = c('numtones','register'),measure.vars = n[c(6:16,18:22)])
+m$register<-factor(m$register,levels = c(-12,0,12),labels = c('-12','0','+12'))
+m$numtones<-factor(m$numtones)
+
+#### ADD p-values to plot: Register
+R<-dplyr::summarise(dplyr::group_by(m,variable),YM= max(value)-(max(value)-min(value))*0.025)
+R$pval<-c('ns','ns','ns','ns','***','ns','***','***','***','***','***','***','***','***','***','***')
+R$XM<-c(3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3)-2.5
+
+#### ADD p-values to plot: Numerosity
+N<-dplyr::summarise(dplyr::group_by(m,variable),YM= max(value)-(max(value)-min(value))*0.17) # was 0.12
+N$pval<-c('***','***','***','***','***','***','***','***','***','***','***','**','ns','***','***','ns')
+N$XM<-c(3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3)-2.5
+
+#### boxplot
+library(ggplot2)
+figure2 <- ggplot(m,aes(x=numtones,y=value,fill=register))+
+  geom_boxplot(notch = TRUE,varwidth = FALSE,outlier.shape = NA,size=0.5)+
+  scale_fill_brewer(name='Register',type = 'div')+
+  facet_wrap(~variable,nrow = 4,ncol = 4,scales = 'free')+
+  geom_label(data = R, aes(x = XM, y = YM, label = paste0("Register: ",pval)),inherit.aes = FALSE,size=2.70,hjust=0,alpha=0.70,label.size = 0)+
+  geom_label(data = N, aes(x = XM, y = YM, label = paste0("Numerosity: ",pval)),inherit.aes = FALSE,size=2.70,hjust=0,alpha=0.70,label.size = 0)+
+  xlab('Numerosity')+
+  ylab('Model output')+
+  theme_bw()+
+  theme(legend.position="bottom")+
+  theme(strip.text.x = element_text(size = 11))
+
+print(figure2)
+
+```
+
+# Experiment 2
+
+## Optimisation of the feature categories with LMM
+
+```{r, message=FALSE, warning=FALSE, cache=TRUE}
+
+#### 0. Load data and libraries -------------------------
+df<-read.csv('data/experiment2_data.csv',header = TRUE)
+library(lme4)
+library(lmerTest)
+library(MuMIn)
+library(ppcor)
+library(caret)
+
+#### 1. Null model -------------------------
+lmer.0 <- lmer(Rating ~ (1|chord_size) + (1|timbre) + (1|dataset) + (1|RandomID),data=df,control = lmerControl(optimizer="Nelder_Mead"))
+summary(lmer.0, correlation = FALSE) #
+
+rand(lmer.0)           #   TABLE 2
+round(r.squaredGLMM(lmer.0),3) #  0 0.172                                  TABLE 2
+round(AIC(lmer.0))    # 34485                                                TABLE 2
+
+#### 2. Harr20 model components --------
+lmer.D23 <- update(lmer.0, . ~ . + har_18_harmonicity + har_19_corpus)
+lmer.D <- update(lmer.0, . ~ . + hutch_78_roughness + har_18_harmonicity + har_19_corpus)
+anova(lmer.D23,lmer.D,REML=FALSE,refit=FALSE,test="Wald") # chi^2=446.5 p <.001    TABLE 1
+
+lmer.D13 <- update(lmer.0, . ~ . + hutch_78_roughness + har_19_corpus)
+anova(lmer.D13,lmer.D,REML=FALSE,refit=FALSE) # chi^2=2.2084, p=0.1373 TABLE 1
+
+lmer.D12 <- update(lmer.0, . ~ . + hutch_78_roughness + har_18_harmonicity)
+anova(lmer.D12,lmer.D,REML=FALSE,refit=FALSE) # chi^2=509.39, p<.001   TABLE 1
+
+#### 2. Harr20 model -------------------------
+lmer.RHF <- update(lmer.0, . ~ . + hutch_78_roughness + har_18_harmonicity + har_19_corpus)
+summary(lmer.RHF, correlation = FALSE) #
+s<-summary(lmer.RHF, correlation = FALSE) #
+round(s$coefficients[,1],2)                    # TABLE 2  c 4.40  -R 2.14  H 0.22  F -0.11 
+#round(confint(lmer.RHF),2)                     # TABLE 2 c3.96   4.88 R -2.34  -1.94 H 0.03   0.41 F -0.11  -0.10
+# (Intercept)         3.92   4.88
+# hutch_78_roughness -2.34  -1.94
+# har_18_harmonicity  0.03   0.41
+# har_19_corpus      -0.11  -0.10
+
+rand(lmer.RHF)                                 # TABLE 2
+round(r.squaredGLMM(lmer.RHF),3) # 0.21 0.397 # TABLE 2
+round(AIC(lmer.RHF))  # 31876                  # TABLE 2
+# semipartial correlations
+print(spcor.test(df$Rating,df$hutch_78_roughness,df[,c("har_18_harmonicity","har_19_corpus")]))   # -0.141   TABLE 1
+print(spcor.test(df$Rating,df$har_18_harmonicity,df[,c("hutch_78_roughness","har_19_corpus")]))   # -0.047   TABLE 1
+print(spcor.test(df$Rating,df$har_19_corpus,df[,c("hutch_78_roughness","har_18_harmonicity")]))   # -0.216   TABLE 1
+
+#### 3. Optimise feature categories -------------------------
+
+#### 3 A Replace ROUGHNESS hutch_78_roughness ---------------- 
+lmer.R1 <- update(lmer.0, . ~ . + seth_93_roughness + har_18_harmonicity + har_19_corpus)
+lmer.R2 <- update(lmer.0, . ~ . + vass_01_roughness + har_18_harmonicity + har_19_corpus)
+lmer.R3 <- update(lmer.0, . ~ . + wang_13_roughness + har_18_harmonicity + har_19_corpus)
+lmer.R4 <- update(lmer.0, . ~ . + spflux + har_18_harmonicity + har_19_corpus)
+
+anova(lmer.RHF,lmer.R1,REML=FALSE,refit=FALSE) # chi^2=0
+anova(lmer.RHF,lmer.R2,REML=FALSE,refit=FALSE) # chi^2=0
+anova(lmer.RHF,lmer.R3,REML=FALSE,refit=FALSE) # chi^2=0
+anova(lmer.RHF,lmer.R4,REML=FALSE,refit=FALSE) # chi^2=0
+
+print(spcor.test(df$Rating,df$seth_93_roughness,df[,c("har_18_harmonicity","har_19_corpus")]))   # -0.051   TABLE 1
+print(spcor.test(df$Rating,df$vass_01_roughness,df[,c("har_18_harmonicity","har_19_corpus")]))   # -0.047  TABLE 1
+print(spcor.test(df$Rating,df$wang_13_roughness,df[,c("har_18_harmonicity","har_19_corpus")]))   # -0.075  TABLE 1
+print(spcor.test(df$Rating,df$spflux,df[,c("har_18_harmonicity","har_19_corpus")]))              # -0.060  TABLE 1
+
+#### 3 B. Replace HARMONICITY har_18_harmonicity ------------------
+lmer.H1 <- update(lmer.0, . ~ . + hutch_78_roughness + milne_13_harmonicity + har_19_corpus)
+lmer.H2 <- update(lmer.0, . ~ . + hutch_78_roughness + parn_88_root_ambig + har_19_corpus)
+lmer.H3 <- update(lmer.0, . ~ . + hutch_78_roughness + parn_94_complex + har_19_corpus)
+lmer.H4 <- update(lmer.0, . ~ . + hutch_78_roughness + bowl_18_min_freq_dist + har_19_corpus)
+lmer.H5 <- update(lmer.0, . ~ . + hutch_78_roughness + TDL + har_19_corpus)
+lmer.H6 <- update(lmer.0, . ~ . + hutch_78_roughness + stolz_15_periodicity + har_19_corpus)
+lmer.H7 <- update(lmer.0, . ~ . + hutch_78_roughness + gill_09_harmonicity + har_19_corpus)
+
+anova(lmer.RHF,lmer.H1,REML=FALSE,refit=FALSE) # 0          TABLE 1
+anova(lmer.RHF,lmer.H2,REML=FALSE,refit=FALSE) # 18.437     TABLE 1
+anova(lmer.RHF,lmer.H3,REML=FALSE,refit=FALSE) # 0          TABLE 1
+anova(lmer.RHF,lmer.H4,REML=FALSE,refit=FALSE) # 72.502     TABLE 1
+anova(lmer.RHF,lmer.H5,REML=FALSE,refit=FALSE) # 124.33     TABLE 1
+anova(lmer.RHF,lmer.H6,REML=FALSE,refit=FALSE) # 148.76     TABLE 1
+anova(lmer.RHF,lmer.H7,REML=FALSE,refit=FALSE) # 7.7232     TABLE 1
+
+print(spcor.test(df$Rating,df$milne_13_harmonicity,df[,c("hutch_78_roughness","har_19_corpus")]))  #  0.034 TABLE 1
+print(spcor.test(df$Rating,df$parn_88_root_ambig,df[,c("hutch_78_roughness","har_19_corpus")]))    # -0.058  TABLE 1
+print(spcor.test(df$Rating,df$parn_94_complex,df[,c("hutch_78_roughness","har_19_corpus")]))       # 0.001  TABLE 1
+print(spcor.test(df$Rating,df$bowl_18_min_freq_dist,df[,c("hutch_78_roughness","har_19_corpus")])) # -0.050  TABLE 1
+print(spcor.test(df$Rating,df$TDL,df[,c("hutch_78_roughness","har_19_corpus")]))                   # 0.087  TABLE 1
+print(spcor.test(df$Rating,df$stolz_15_periodicity,df[,c("hutch_78_roughness","har_19_corpus")]))  # 0.108  TABLE 1
+print(spcor.test(df$Rating,df$gill_09_harmonicity,df[,c("hutch_78_roughness","har_19_corpus")]))   # 0.037  TABLE 1
+
+#### 3 C Replace FAMILIARY har_19_corpus -----------------
+lmer.F1 <- update(lmer.0, . ~ . + hutch_78_roughness + stolz_15_periodicity + keyclar)
+lmer.F2 <- update(lmer.0, . ~ . + hutch_78_roughness + stolz_15_periodicity + CorpPop)
+lmer.F3 <- update(lmer.0, . ~ . + hutch_78_roughness + stolz_15_periodicity + CorpJazz)
+lmer.F4 <- update(lmer.0, . ~ . + hutch_78_roughness + stolz_15_periodicity + CorpClas)
+
+anova(lmer.H6,lmer.F1,REML=FALSE,refit=FALSE)   #           TABLE 1
+anova(lmer.H6,lmer.F2,REML=FALSE,refit=FALSE)   # 305.15    TABLE 1
+anova(lmer.H6,lmer.F3,REML=FALSE,refit=FALSE)   # 0         TABLE 1
+anova(lmer.H6,lmer.F4,REML=FALSE,refit=FALSE)   # 0         TABLE 1
+
+print(spcor.test(df$Rating,df$keyclar,df[,c("hutch_78_roughness","stolz_15_periodicity")]))    #  0.131 TABLE 1
+print(spcor.test(df$Rating,df$CorpPop,df[,c("hutch_78_roughness","stolz_15_periodicity")]))    # -0.228 TABLE 1
+print(spcor.test(df$Rating,df$CorpJazz,df[,c("hutch_78_roughness","stolz_15_periodicity")]))   # -0.147 TABLE 1
+print(spcor.test(df$Rating,df$CorpClas,df[,c("hutch_78_roughness","stolz_15_periodicity")]))   # -0.086 TABLE 1
+
+#### 3 D. Replace SPECTRAL ENVELOPE predictors -------------------------
+
+lmer.S1 <- update(lmer.0, . ~ . + hutch_78_roughness + stolz_15_periodicity + CorpPop + spcentr)
+lmer.S2 <- update(lmer.0, . ~ . + hutch_78_roughness + stolz_15_periodicity + CorpPop + sharpness)
+lmer.S3 <- update(lmer.0, . ~ . + hutch_78_roughness + stolz_15_periodicity + CorpPop + spirreg)
+lmer.S4 <- update(lmer.0, . ~ . + hutch_78_roughness + stolz_15_periodicity + CorpPop + sproll)
+
+anova(lmer.F2,lmer.S1,REML=FALSE,refit=FALSE)  # 0               TABLE 1
+anova(lmer.F2,lmer.S2,REML=FALSE,refit=FALSE)  # 0.6965 p=0.404  TABLE 1
+anova(lmer.F2,lmer.S3,REML=FALSE,refit=FALSE)  # 16.838, ***    TABLE 1
+anova(lmer.F2,lmer.S4,REML=FALSE,refit=FALSE)  # 0             TABLE 1
+
+print(spcor.test(df$Rating,df$spcentr,df[,c("hutch_78_roughness","stolz_15_periodicity","CorpPop")]))   # -0.0071  TABLE 1
+print(spcor.test(df$Rating,df$sharpness,df[,c("hutch_78_roughness","stolz_15_periodicity","CorpPop")])) # -0.011  TABLE 1
+print(spcor.test(df$Rating,df$spirreg,df[,c("hutch_78_roughness","stolz_15_periodicity","CorpPop")]))   # -0.047  TABLE 1
+print(spcor.test(df$Rating,df$sproll,df[,c("hutch_78_roughness","stolz_15_periodicity","CorpPop")]))    # -0.02077  TABLE 1
+
+#### 4. Harr20 Composite model -------------------
+
+lmer.HP <- update(lmer.0, . ~ . + har_19_composite)
+summary(lmer.HP,correlation=FALSE)
+round(r.squaredGLMM(lmer.HP),3) # 0.221 0.401
+
+#### TABLE 2 ---------------------
+# null model
+summary(lmer.0,  correlation = FALSE)
+round(confint(lmer.0),2)
+#(Intercept)  2.57   3.30
+rand(lmer.0)
+round(r.squaredGLMM(lmer.0),3) #  0 0.172 where m is marginal and for fixed effects and c is both random and fixed
+round(AIC(lmer.0)) # 34485
+
+## Harr20 model
+summary(lmer.RHF,  correlation = FALSE)
+round(confint(lmer.RHF),2)
+s<-summary(lmer.RHF, correlation = FALSE) #
+round(s$coefficients[,1],2)
+
+rand(lmer.RHF)
+round(r.squaredGLMM(lmer.RHF),3) #   0.21 0.397
+round(AIC(lmer.RHF)) # 31876
+
+# Eero21 model
+lmer.bestHFS <- update(lmer.0, . ~ . + hutch_78_roughness + stolz_15_periodicity + CorpPop + spirreg)
+summary(lmer.bestHFS,  correlation = FALSE)
+s<-summary(lmer.bestHFS, correlation = FALSE) #
+round(s$coefficients[,1],2)
+# (Intercept)   hutch_78_roughness stolz_15_periodicity              CorpPop              spirreg 
+# 4.97                -1.32                 0.17                -0.10                -0.20 
+#round(confint(lmer.bestHFS),2)
+# (Intercept)           4.52   5.42
+# hutch_78_roughness   -1.55  -1.09
+# stolz_15_periodicity  0.14   0.20
+# CorpPop              -0.11  -0.09
+# spirreg              -0.29  -0.12
+rand(lmer.bestHFS)              # 
+round(r.squaredGLMM(lmer.bestHFS),3) # 0.25 0.435
+round(AIC(lmer.bestHFS)) # 31407
+
+#### 6. Statistics to text --------------------
+# Composite vs optimised Harrison Pearce
+anova(lmer.HP,lmer.RHF,REML=FALSE,refit=FALSE) # chi^2 = 83.62, ***  R1 full: 184.86, df=2, ***
+
+# original vs optimised
+anova(lmer.RHF,lmer.bestHFS,REML=FALSE,refit=FALSE) # R1 full data: chi^2 =  470.75, ***df=1
+```
+
+## Alternative analyses
+
+### Random vs Fixed factors
+
+Alternative analysis where chord size is included as a fixed factor (and we drop datasets entirely, it does not seem to be doing much), chord size is consistently a significant predictor in all models with a small positive coefficient.
+
+```{r,message=FALSE,warning=FALSE,cache=TRUE}
+source('exp2_alternative_analysis.R')
+```
+
+### Permutated analysis sequence
+
+A control analysis with all 24 permutations of the predictor category orders (e.g. starting with "Roughness", "Harmonicity","Familiarity", and "Spectral Envelope" as reported and moving onto "Roughness", "Harmonicity", "Spectral Envelope", and "Familiarity", until all 24 permutations had gone through with the same type of analysis where all candidates are tested and the strongest one is taken forward to represent that category). The outcome of this analysis did not change in any iteration, so the same predictors won the comparison despite their order in the sequence. However, the strength of the predictor improvement did vary across the orders.
+
+```{r,message=FALSE,warning=FALSE,cache=TRUE,results='asis'}
+source('exp2_permutated_analysis.R')
+```
+
+# Experiment 3
+
+## Unpooled regression - Harr20R model
+
+```{r,message=FALSE, warning=FALSE, cache=FALSE, results='asis'}
+D <- read.csv('data/experiment3_data.csv')
+
+#### LIBRARIES ----------------------
+library(caret)
+library(ppcor)
+
+#### DEFINE CROSS-VALIDATION AND CREATE OUTPUT VARIABLES ----------------------
+set.seed(2703)
+split=0.80
+D$dataset<-factor(D$dataset,levels = c("sch03","jl12a","jl12b","lah16","art18","bowl18","pop19","lah20a","lah20b"))
+U<-levels(D$dataset)
+
+res<-matrix(0,length(U),8) # Placeholder for the results
+colnames(res)<-c('R2','b0','b_R','b_H','b_F','sr_R','sr_H','sr_F')
+rownames(res)<-U
+res<-data.frame(res)
+
+pre<-matrix(0,length(U),length(U))
+pre<-data.frame(pre); colnames(pre)<-U; rownames(pre)<-U
+
+## Standardize variables
+modelformula <- rating ~ hutch_78_roughness + har_18_harmonicity + har_19_corpus
+#all.vars(modelformula)
+D2 <- lapply(D[, all.vars(modelformula)], scale) 
+D2<-data.frame(D2)
+#dim(D2)
+D2$dataset<-D$dataset
+D2$id<-D$id
+D<-D2
+rm(D2)
+
+#### 1. Train with one dataset ------------------------
+for (k in 1:length(U)) {
+#  print(paste(U[k],' (',k,'/',length(U),')',sep = ''))
+  df<-dplyr::filter(D,dataset==U[k]); df$id<-factor(df$id)
+  trainIndex <- createDataPartition(df$dataset, p=split, list=FALSE)
+  train <- df[ trainIndex,]
+  test <- df[-trainIndex,]
+#  table(train$id)
+#  table(test$id)
+  
+  ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10) # 10-fold
+  model1 <- train(rating ~ hutch_78_roughness + har_18_harmonicity + har_19_corpus, data = train,method = "lm",trControl=ctrl) # Default
+  predicted1 <- predict.train(model1, newdata=test) # 
+  r1 <- R2(predicted1, test[['rating']])
+  
+  # rsquared and beta coefficients
+  res$R2[k]<-as.numeric(r1)
+  res$b0[k]<-as.numeric(model1$finalModel$coefficients[1])
+  res$b_R[k]<-as.numeric(model1$finalModel$coefficients[2])
+  res$b_H[k]<-as.numeric(model1$finalModel$coefficients[3])
+  res$b_F[k]<-as.numeric(model1$finalModel$coefficients[4])
+  
+  # semi-partial correlations
+  x1 <- spcor.test(df$rating,df$hutch_78_roughness,df[,c("har_18_harmonicity","har_19_corpus")]) # -0.376
+  x2<-spcor.test(df$rating,df$har_18_harmonicity,df[,c("hutch_78_roughness","har_19_corpus")]) # -0.03685277
+  x3<-spcor.test(df$rating,df$har_19_corpus,df[,c("hutch_78_roughness","har_18_harmonicity")]) # 0.4902631
+
+  res$sr_R[k]<-abs(x1$estimate)
+  res$sr_H[k]<-abs(x2$estimate)
+  res$sr_F[k]<-abs(x3$estimate)
+
+  #### 2. Predict all others ----------------------------
+  for (l in 1:length(U)) {
+ #   print(paste('Cross-validate: ',U[l],' (',k,'/',length(U),')',sep = ''))
+    Dsubset <- dplyr::filter(D,dataset==as.character(U[l]))
+    predicted1 <- predict.train(model1, newdata=Dsubset) # 
+    x1 <- R2(predicted1, Dsubset[['rating']])
+    pre[k,l]<-x1
+  }
+}
+
+# output: R2, weight, and sr2 for Roughness, Harmonicity, Familiarity predictor
+## Add weighted mean to the table
+# PREDICTORS
+library(dplyr)
+n<-dplyr::summarise(dplyr::group_by(D,dataset), n=n())
+wm<-array(0,8)
+for (k in 1:8) {
+  wm[k] <- weighted.mean(res[,k],n$n)
+}
+res2<-rbind(res,wm)
+rownames(res2)[10]<-'W. Mean'
+print(knitr::kable(res2,digits = 2)) # results
+
+## R2
+for (k in 1:9) {
+  wm[k] <- weighted.mean(pre[,k],n$n)
+}
+
+pre2<-rbind(pre,wm)
+
+for (k in 1:10) {
+  wm[k] <- weighted.mean(pre2[k,],n$n)
+}
+
+pre3<-cbind(pre2,wm)
+rownames(pre3)[10]<-'W. Mean'
+colnames(pre3)[10]<-'W. Mean'
+
+#print(knitr::kable(pre3,digits = 2)) # results
+
+```
+
+## Unpooled regression - Eero21 model
+
+```{r, message=FALSE, warning=FALSE, cache=FALSE, results='asis'}
+D <- read.csv('data/experiment3_data.csv')
+
+library(caret)
+library(ppcor)
+
+#### DEFINE CROSS-VALIDATION AND CREATE OUTPUT VARIABLES ----------------------
+set.seed(11) 
+
+split=0.80
+
+D$dataset<-factor(D$dataset,levels = c("sch03","jl12a","jl12b","lah16","art18","bowl18","pop19","lah20a","lah20b"))
+U<-levels(D$dataset)
+
+res<-matrix(0,length(U),10) # Placeholder for the results
+colnames(res)<-c('R2','b0','b_R','b_H','b_F','b_S','sr_R','sr_H','sr_F','sr_S')
+rownames(res)<-U
+res<-data.frame(res)
+
+pre<-matrix(0,length(U),length(U))
+pre<-data.frame(pre); colnames(pre)<-U; rownames(pre)<-U
+
+## Standardize variables
+modelformula <- rating ~ hutch_78_roughness + stolz_15_periodicity + CorpPop + spirreg
+#all.vars(modelformula)
+D2 <- lapply(D[, all.vars(modelformula)], scale) 
+D2<-data.frame(D2)
+D2$dataset<-D$dataset
+D2$id<-D$id
+
+#### 1. Train with one dataset ------------------------
+
+for (k in 1:length(U)) {
+#  print(paste(U[k],' (',k,'/',length(U),')',sep = ''))
+  df<-dplyr::filter(D2,dataset==U[k]); df$id<-factor(df$id)
+  trainIndex <- createDataPartition(df$dataset, p=split, list=FALSE)
+  train <- df[ trainIndex,]
+  test <- df[-trainIndex,]
+#  table(train$id)
+#  table(test$id)
+  
+  ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 10) # 10-fold
+  model1 <- train(rating ~ hutch_78_roughness + stolz_15_periodicity + CorpPop + spirreg, data = train,method = "lm",trControl=ctrl)  # Optimal
+  predicted1 <- predict.train(model1, newdata=test) # 
+  r1 <- R2(predicted1, test[['rating']])
+  
+  # rsquared and beta coefficients
+  res$R2[k]<-as.numeric(r1)
+  res$b0[k]<-as.numeric(model1$finalModel$coefficients[1])
+  res$b_R[k]<-as.numeric(model1$finalModel$coefficients[2])
+  res$b_H[k]<-as.numeric(model1$finalModel$coefficients[3])
+  res$b_F[k]<-as.numeric(model1$finalModel$coefficients[4])
+  res$b_S[k]<-as.numeric(model1$finalModel$coefficients[5])
+  
+  # semi-partial correlations and correlations
+  x1 <- spcor.test(df$rating,df$hutch_78_roughness,df[,c("stolz_15_periodicity","CorpPop","spirreg")]) # -0.376
+  x2<-spcor.test(df$rating,df$stolz_15_periodicity,df[,c("hutch_78_roughness","CorpPop","spirreg")]) # -0.03685277
+  x3<-spcor.test(df$rating,df$CorpPop,df[,c("hutch_78_roughness","stolz_15_periodicity","spirreg")]) # 0.4902631
+  x4<-spcor.test(df$rating,df$spirreg,df[,c("hutch_78_roughness","stolz_15_periodicity","CorpPop")]) # 0.4902631
+
+  res$sr_R[k]<-abs(x1$estimate)
+  res$sr_H[k]<-abs(x2$estimate)
+  res$sr_F[k]<-abs(x3$estimate)
+  res$sr_S[k]<-abs(x4$estimate)
+
+  #### 2. Predict all others ----------------------------
+  for (l in 1:length(U)) {
+ #   print(paste('Cross-validate: ',U[l],' (',k,'/',length(U),')',sep = ''))
+    
+    Dsubset <- dplyr::filter(D,dataset==as.character(U[l]))
+    predicted1 <- predict.train(model1, newdata=Dsubset) # 
+    x1 <- R2(predicted1, Dsubset[['rating']])
+    pre[k,l]<-x1
+  }
+}
+
+library(dplyr)
+n<-dplyr::summarise(dplyr::group_by(D,dataset), n=n())
+wm<-array(0,10)
+for (k in 1:10) {
+  wm[k] <- weighted.mean(res[,k],n$n,na.rm=TRUE)
+}
+res2<-rbind(res,wm)
+rownames(res2)[10]<-'W. Mean'
+print(knitr::kable(res2,digits = 2)) # results
+
+## R2
+for (k in 1:9) {
+  wm[k] <- weighted.mean(pre[,k],n$n)
+}
+
+pre2<-rbind(pre,wm)
+
+for (k in 1:10) {
+  wm[k] <- weighted.mean(pre2[k,],n$n)
+}
+
+pre3<-cbind(pre2,wm)
+rownames(pre3)[10]<-'W. Mean'
+colnames(pre3)[10]<-'W. Mean'
+
+#print(knitr::kable(pre3,digits = 2)) # results
+
+```
+
+## Principal component analysis
+
+```{r, message=FALSE, warning=FALSE, cache=FALSE, results='asis'}
+n<-names(D)
+#n[c(15:25,27,29:34,37:39,41)]
+D_pred_only <- D[,c(15:25,27,29:34,37:39,41)]
+D_pred_only$TDL1<-as.numeric(D_pred_only$TDL1)
+#### Scale variables -------------
+D_pred_only2 <- scale(x = D_pred_only,center = TRUE,scale = TRUE)
+D_pred_only2 <- data.frame(D_pred_only2)
+
+#### Estimate components
+library(psych)
+cm<-cor(D_pred_only2)
+fnum <- fa.parallel(cm, fa="pc", fm = 'pa',n.obs = nrow(D), n.iter = 1000,cor = 'cor')
+#print(fnum$ncomp)
+
+f2 <- psych::principal(cm,nfactors = 3,n.obs = nrow(D),scores = TRUE)
+#f2 #  0.34 0.55 0.69
+loads <- unclass(f2$loadings)
+loads <- data.frame(loads)
+rownames(loads)[which(abs(loads$RC1)==max(abs(loads$RC1)))] # vass_
+rownames(loads)[which(abs(loads$RC2)==max(abs(loads$RC2)))] # spectcentr
+rownames(loads)[which(abs(loads$RC3)==max(abs(loads$RC3)))] # corpPop
+
+loads$RC1abs <- abs(loads$RC1)
+loads$RC3abs <- abs(loads$RC3)
+loads$RC2abs <- abs(loads$RC2)
+loads_S<-dplyr::arrange(loads,desc(RC1abs),desc(RC3abs),desc(RC2abs))
+#loads_S
+th <- 0.55 # Threshold
+loads_S$RC1[loads_S$RC1abs < th] <- NA
+loads_S$RC2[loads_S$RC2abs < th] <- NA
+loads_S$RC3[loads_S$RC3abs < th] <- NA
+
+knitr::kable(loads_S[,1:3],digits = 2)
+
+# Put the components into the data frame for regression
+scores <- factor.scores(D_pred_only, f2)
+D$PC1<-scores$scores[,1]
+D$PC2<-scores$scores[,2]
+D$PC3<-scores$scores[,3]
+
+# See how well the predictors correlate with loadings
+cor(D$PC1,D$vass_01_roughness)
+cor(D$PC2,D$CorpPop)
+cor(D$PC3,D$spcentr)
+
+```
+
+## Pooled regression for all models
+
+```{r,message=FALSE,warning=FALSE,cache=FALSE}
+D <- read.csv('data/experiment3_data.csv')
+
+### PCA components
+D_pred_only <- D[,c(15:25,27,29:34,37:39,41)]
+D_pred_only$TDL1<-as.numeric(D_pred_only$TDL1)
+#### Scale variables -------------
+D_pred_only2 <- scale(x = D_pred_only,center = TRUE,scale = TRUE)
+D_pred_only2 <- data.frame(D_pred_only2)
+library(psych)
+cm<-cor(D_pred_only2)
+f2 <- psych::principal(cm,nfactors = 3,n.obs = nrow(D),scores = TRUE)
+# Put the components into the data frame for regression
+scores <- factor.scores(D_pred_only, f2)
+D$PC1<-scores$scores[,1]
+D$PC2<-scores$scores[,2]
+D$PC3<-scores$scores[,3]
+
+#### LIBRARIES ----------------------
+library(caret)
+library(ppcor)
+
+#### JUST A SINGLE CROSSVAL MODEL FOR THE ENTIRE DATASET ---------------------
+split=0.80
+rsquared<-NULL
+
+set.seed(152)
+trainIndex <- createDataPartition(D$dataset, p=split, list=FALSE)
+train <- D[ trainIndex,]
+test <- D[-trainIndex,]
+set.seed(152)
+
+ctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 50) # 10-fold
+
+model<-list()
+model[[1]] <- train(rating ~ har_19_composite, data = train,method = "lm",trControl=ctrl)
+model[[2]] <- train(rating ~ hutch_78_roughness + har_18_harmonicity + har_19_corpus, data = train,method = "lm",trControl=ctrl)
+model[[3]] <- train(rating ~ hutch_78_roughness + stolz_15_periodicity + CorpPop + spirreg, data = train,method = "lm",trControl=ctrl)  # Optimal
+model[[4]] <- train(rating ~ PC1 + PC2 + PC3, data = train,method = "lm",trControl=ctrl)  # Optimal
+model[[5]] <- train(rating ~ vass_01_roughness + spcentr + CorpPop, data = train,method = "lm",trControl=ctrl)  # Optimal
+
+r2<-array(0,length(model))
+for (k in 1:length(model)) {
+    predicted1 <- predict.train(model[[k]], newdata=test)
+    r2[k]<-R2(predicted1, test[['rating']])
+  }
+rsquared<-rbind(rsquared,r2)
+
+rsquared<-data.frame(rsquared)
+colnames(rsquared)<-c('Harr20','Harr20R','Eero21','PCA comp.','PCA pred.')
+print(knitr::kable(round(rsquared,3)))
+
+# Model coefficients for table
+summary(model[[1]])
+summary(model[[2]])
+summary(model[[3]])
+summary(model[[4]])
+summary(model[[5]])
+
+## Harr20R model
+spcor.test(D$rating,D$hutch_78_roughness,D[,c("har_18_harmonicity","har_19_corpus")]) # -0.241
+spcor.test(D$rating,D$har_18_harmonicity,D[,c("hutch_78_roughness","har_19_corpus")]) #  0.098
+spcor.test(D$rating,D$har_19_corpus,D[,c("har_18_harmonicity","hutch_78_roughness")]) #  0.378
+
+## Eero21 model
+spcor.test(D$rating,D$hutch_78_roughness,D[,c("stolz_15_periodicity","CorpPop","spirreg")]) # -0.050
+spcor.test(D$rating,D$stolz_15_periodicity,D[,c("hutch_78_roughness","CorpPop","spirreg")]) #  0.238
+spcor.test(D$rating,D$CorpPop,D[,c("stolz_15_periodicity","hutch_78_roughness","spirreg")]) # -0.349
+spcor.test(D$rating,D$spirreg,D[,c("stolz_15_periodicity","CorpPop","hutch_78_roughness")]) # 0.046
+
+round(AIC(model[[1]]$finalModel)) # 1757
+round(AIC(model[[2]]$finalModel)) # 1725
+round(AIC(model[[3]]$finalModel)) # 1643
+round(AIC(model[[4]]$finalModel)) # 1699
+round(AIC(model[[5]]$finalModel)) # 1774
+
+anova(model[[1]]$finalModel,model[[2]]$finalModel,test="Chisq") # 68.335  Harr20 vs Harr20R
+anova(model[[2]]$finalModel,model[[3]]$finalModel,test="Chisq") # 144.25 Harr20R vs Eero21
+anova(model[[2]]$finalModel,model[[4]]$finalModel,test="Chisq") # 48.338  Harr21 vs PCA comp.
+anova(model[[2]]$finalModel,model[[5]]$finalModel,test="Chisq") # 0     Harr21 vs PCA predictors
+anova(model[[3]]$finalModel,model[[4]]$finalModel,test="Chisq") # 0     Eero21 vs PCA components
+anova(model[[3]]$finalModel,model[[5]]$finalModel,test="Chisq") # 0     Eero21 vs PCA predictors
+
+rsquared$Harr20R-rsquared$Harr20  # 0.04344239
+rsquared$Eero21-rsquared$Harr20R  # 0.1132748
+rsquared$Eero21-rsquared$`PCA comp.`  # 0.0615
+
+#### PCA
+spcor.test(D$rating,D$PC1,D[,c("PC2","PC3")]) # -0.441
+spcor.test(D$rating,D$PC2,D[,c("PC1","PC3")]) # -0.678
+spcor.test(D$rating,D$PC3,D[,c("PC1","PC2")]) # -0.042
+
+#### PCA best predictors
+spcor.test(D$rating,D$vass_01_roughness,D[,c("CorpPop","spcentr")]) # -0.274
+spcor.test(D$rating,D$CorpPop,D[,c("vass_01_roughness","spcentr")]) # -0.675
+spcor.test(D$rating,D$spcentr,D[,c("vass_01_roughness","CorpPop")]) # -0.100
+
+# multicollinearity? correlation between roughness and harmonicity variables
+cor(D$hutch_78_roughness,D$stolz_15_periodicity) # -0.8093115
+
+```
+
+## Visualise model predictions
+
+```{r,fig.width=12,fig.height=10}
+library(ggrepel)
+
+# Get Eero21 model prediction for the whole data
+p <- predict(model[[3]]$finalModel, newdata=D, interval = "confidence")
+D$pred<-p[,1]
+D$pred_lwr<-p[,2]
+D$pred_upr<-p[,3]
+
+#### Plot only unique Forte chords
+DS<-dplyr::summarise(group_by(D,Forte,dataset),rating=mean(rating),rating_sd=mean(rating_sd),pred=mean(pred),pred_lwr=mean(pred_lwr),pred_upr=mean(pred_upr),CorpPop=mean(CorpPop))
+DS$diff <- abs(DS$pred - DS$rating)
+q<-quantile(DS$diff,0.9)
+q<-2
+DS$Forte2<-DS$Forte
+rare<-8.5 # 
+DS$Forte2[DS$CorpPop > rare & DS$diff < as.numeric(q)]<-""          # remove rare ones
+
+DS$col<-'red'
+DS$col[DS$diff < as.numeric(q)]<-"grey90"
+
+DS$col<-'grey10'
+DS$col[DS$diff < as.numeric(q)]<-"grey90"
+DS$col2<-DS$col
+
+DS$col2[DS$col2=='grey90']<-'black'
+DS$col2[DS$col2=='grey10']<-'white'
+
+DS<-dplyr::arrange(DS,dataset,-rating)
+
+DS$num<-0
+DS$num[DS$dataset=='lah16']<-seq(1,length(DS$num[DS$dataset=='lah16']))
+DS$num[DS$dataset=='jl12a']<-seq(1,length(DS$num[DS$dataset=='jl12a']))
+DS$num[DS$dataset=='jl12b']<-seq(1,length(DS$num[DS$dataset=='jl12b']))
+DS$num[DS$dataset=='sch03']<-seq(1,length(DS$num[DS$dataset=='sch03']))
+DS$num[DS$dataset=='bowl18']<-seq(1,length(DS$num[DS$dataset=='bowl18']))
+DS$num[DS$dataset=='art18']<-seq(1,length(DS$num[DS$dataset=='art18']))
+DS$num[DS$dataset=='lah20a']<-seq(1,length(DS$num[DS$dataset=='lah20a']))
+DS$num[DS$dataset=='lah20b']<-seq(1,length(DS$num[DS$dataset=='lah20b']))
+DS$num[DS$dataset=='pop19']<-seq(1,length(DS$num[DS$dataset=='pop19']))
+
+DS$Size<-0
+DS$Size[DS$dataset=='lah16']<-sum(DS$dataset=='lah16')
+DS$Size[DS$dataset=='jl12a']<-sum(DS$dataset=='jl12a')
+DS$Size[DS$dataset=='jl12b']<-sum(DS$dataset=='jl12b')
+DS$Size[DS$dataset=='sch03']<-sum(DS$dataset=='sch03')
+DS$Size[DS$dataset=='bowl18']<-sum(DS$dataset=='bowl18')
+DS$Size[DS$dataset=='art18']<-sum(DS$dataset=='art18')
+DS$Size[DS$dataset=='lah20a']<-sum(DS$dataset=='lah20a')
+DS$Size[DS$dataset=='lah20b']<-sum(DS$dataset=='lah20b')
+DS$Size[DS$dataset=='pop19']<-sum(DS$dataset=='pop19')
+
+color1<-'#7570b3'
+color2<-'#d95f02'
+errorbarwidth<-0.02
+
+g2<-ggplot(DS,aes(x=num,y=rating,label=Forte2))+
+  geom_line(colour=color1,stat = 'identity')+
+  geom_point(colour=color1,stat = 'identity')+
+  geom_errorbar(aes(x=num,ymin=rating-rating_sd,ymax=rating+rating_sd,width=Size*errorbarwidth),colour=color1,stat = 'identity')+
+  geom_point(aes(x=num,y=pred),colour=color2,stat = 'identity',shape=15)+
+  geom_line(aes(x=num,y=pred), colour=color2,stat = 'identity')+
+  geom_errorbar(aes(x=num,ymin=pred_lwr,ymax=pred_upr,width=Size*errorbarwidth),colour=color2,stat = 'identity')+
+  facet_wrap(~dataset,scales = "free_x")+
+  scale_x_continuous()+ # breaks = seq(1,300,by=5),expand=c(0,0),
+  ylab('Consonance Rating')+
+  xlab('Chords/Intervals in Forte Class')+
+  geom_label_repel(
+    nudge_y      = 1.95,
+    nudge_x      = 1.95,
+    direction    = "both",
+    angle        = 90,
+    force        = 1,
+    vjust        = 0,
+    hjust        = 0,
+    size         = 2.50,
+    box.padding  = 0.1,
+    segment.size = 0.25,
+    segment.color = 'grey20',
+    label.padding=0.1,
+    fill         = DS$col,
+    alpha        = .90,
+    color        = DS$col2
+  )+
+  theme_bw()+
+  theme(strip.text.x = element_text(size = 11))+
+  theme(axis.text.x = element_blank())
+
+print(g2) # Figure 3 in the manuscript
+
+```
+
 
