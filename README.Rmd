@@ -25,7 +25,9 @@ knitr::opts_chunk$set(
 )
 ```
 
-This repository contains data and analyses related to study titled _The Anatomy of Consonance/Dissonance: Evaluating Acoustic and Cultural Predictors Across Multiple Datasets with Chords_ by Tuomas Eerola and Imre Lahdelma (Durham University, UK).
+This repository contains data and analyses related to study
+
+Eerola, T. & Lahdelma, I. (2021). The Anatomy of Consonance/Dissonance: Evaluating Acoustic and Cultural Predictors Across Multiple Datasets with Chords. _Music & Science_, https://doi.org/10.1177/20592043211030471
 
 The study is organised into three experiments:
 
